@@ -1,3 +1,3 @@
-int calculate() {
-  return 6 * 7;
-}
+import 'dart:io';
+
+void check(Iterable<File> files) {}
