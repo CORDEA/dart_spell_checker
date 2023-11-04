@@ -29,7 +29,6 @@ class _AstVisitor extends RecursiveAstVisitor {
   @override
   visitComment(Comment node) {
     final start = node.offset;
-    final comment = node.tokens.map((e) => e.lexeme).join('\n');
     final blocks = node.codeBlocks
         .map(
           (e) => e.lines.map((e) {
@@ -40,10 +39,15 @@ class _AstVisitor extends RecursiveAstVisitor {
         .expand((e) => e)
         .toList()
         .reversed;
-    comments.add(blocks.fold(
-      comment,
+    final comment = blocks.fold(
+      node.tokens.map((e) => e.lexeme).join('\n'),
       (previous, e) => previous.replaceRange(e.start, e.end, ''),
-    ));
+    );
+    comments.add(
+      comment
+          .replaceAll(RegExp(r'\[[\w\\.]+\]'), '')
+          .replaceAll(RegExp(r'`.+`'), ''),
+    );
     return super.visitComment(node);
   }
 }
