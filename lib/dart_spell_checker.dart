@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/features.dart';
@@ -14,10 +15,21 @@ void check(Iterable<File> files) {
       featureSet: FeatureSet.latestLanguageVersion(),
     );
     comments.addAll(findComments(result));
+    comments.addAll(findDocComments(result));
   }
 }
 
 List<String> findComments(ParseStringResult result) {
+  return LineSplitter()
+      .convert(result.content)
+      .map((e) => RegExp(r'(?:[^/]|^)/{2}\s*([^/].+)').firstMatch(e))
+      .map((e) => e?.group(1))
+      .whereType<String>()
+      .expand((e) => e.extractWords())
+      .toList();
+}
+
+List<String> findDocComments(ParseStringResult result) {
   final visitor = _AstVisitor();
   result.unit.visitChildren(visitor);
   return visitor.comments;
@@ -43,13 +55,14 @@ class _AstVisitor extends RecursiveAstVisitor {
       node.tokens.map((e) => e.lexeme).join('\n'),
       (previous, e) => previous.replaceRange(e.start, e.end, ''),
     );
-    comments.addAll(
-      comment
-          .replaceAll(RegExp(r'\[[\w\\.]+\]'), '')
-          .replaceAll(RegExp(r'`.+`'), '')
-          .split(RegExp(r'\s+'))
-          .where((e) => RegExp(r'\w+').hasMatch(e)),
-    );
+    comments.addAll(comment.extractWords());
     return super.visitComment(node);
   }
+}
+
+extension on String {
+  Iterable<String> extractWords() => replaceAll(RegExp(r'\[[\w\\.]+\]'), '')
+      .replaceAll(RegExp(r'`.+`'), '')
+      .split(RegExp(r'\s+'))
+      .where((e) => RegExp(r'\w+').hasMatch(e));
 }
