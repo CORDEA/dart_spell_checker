@@ -6,17 +6,32 @@ import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:collection/collection.dart';
 
-void check(Iterable<File> files) {
-  final comments = [];
+Future<void> check(Iterable<File> files) async {
   for (final file in files) {
-    final result = parseFile(
+    final parsed = parseFile(
       path: file.path,
       featureSet: FeatureSet.latestLanguageVersion(),
     );
-    comments.addAll(findComments(result));
-    comments.addAll(findDocComments(result));
+    final result = await checkSpell(
+      [...findComments(parsed), ...findDocComments(parsed)],
+    );
   }
+}
+
+Future<Map<String, bool>> checkSpell(List<String> words) async {
+  final process = await Process.start('aspell', ['-a', '-l', 'en_US']);
+  final future = process.stdout.transform(utf8.decoder).first;
+  process.stdin.writeln(words.join('\n'));
+  final result = LineSplitter().convert(await future).skip(1);
+  process.kill();
+  return Map.fromEntries(
+    result
+        .where((e) => e.isNotEmpty)
+        .map((e) => e == '*')
+        .mapIndexed((i, e) => MapEntry(words[i], e)),
+  );
 }
 
 List<String> findComments(ParseStringResult result) {
