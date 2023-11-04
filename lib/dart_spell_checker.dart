@@ -28,8 +28,22 @@ class _AstVisitor extends RecursiveAstVisitor {
 
   @override
   visitComment(Comment node) {
+    final start = node.offset;
     final comment = node.tokens.map((e) => e.lexeme).join('\n');
-    comments.add(comment);
+    final blocks = node.codeBlocks
+        .map(
+          (e) => e.lines.map((e) {
+            final s = e.offset - start;
+            return (start: s, end: s + e.length);
+          }),
+        )
+        .expand((e) => e)
+        .toList()
+        .reversed;
+    comments.add(blocks.fold(
+      comment,
+      (previous, e) => previous.replaceRange(e.start, e.end, ''),
+    ));
     return super.visitComment(node);
   }
 }
