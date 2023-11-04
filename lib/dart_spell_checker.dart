@@ -43,10 +43,12 @@ class _AstVisitor extends RecursiveAstVisitor {
       node.tokens.map((e) => e.lexeme).join('\n'),
       (previous, e) => previous.replaceRange(e.start, e.end, ''),
     );
-    comments.add(
+    comments.addAll(
       comment
           .replaceAll(RegExp(r'\[[\w\\.]+\]'), '')
-          .replaceAll(RegExp(r'`.+`'), ''),
+          .replaceAll(RegExp(r'`.+`'), '')
+          .split(RegExp(r'\s+'))
+          .where((e) => RegExp(r'\w+').hasMatch(e)),
     );
     return super.visitComment(node);
   }
