@@ -26,9 +26,9 @@ Future<Map<File, List<WordResult>>> check(Iterable<File> files) async {
 
 Future<List<WordResult>> _checkSpell(List<_Comment> words) async {
   final process = await Process.start('aspell', ['-a', '-l', 'en_US']);
-  final future = process.stdout.transform(utf8.decoder).first;
   process.stdin.writeln(words.map((e) => e.value).join('\n'));
-  final result = LineSplitter().convert(await future).skip(1);
+  final stdout = await process.stdout.transform(utf8.decoder).first;
+  final result = LineSplitter().convert(stdout).skip(1);
   process.kill();
   return result
       .where((e) => e.isNotEmpty)
