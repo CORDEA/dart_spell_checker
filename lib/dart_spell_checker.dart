@@ -9,31 +9,35 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/source/line_info.dart';
 import 'package:collection/collection.dart';
 
-Future<void> check(Iterable<File> files) async {
+Future<Map<File, List<WordResult>>> check(Iterable<File> files) async {
+  final result = <File, List<WordResult>>{};
   for (final file in files) {
     final content = file.readAsLinesSync();
     final parsed = parseString(
       content: content.join('\n'),
       featureSet: FeatureSet.latestLanguageVersion(),
     );
-    final result = await _checkSpell(
+    result[file] = await _checkSpell(
       [..._findComments(content), ..._findDocComments(parsed)],
     );
   }
+  return result;
 }
 
-Future<Map<_Comment, bool>> _checkSpell(List<_Comment> words) async {
+Future<List<WordResult>> _checkSpell(List<_Comment> words) async {
   final process = await Process.start('aspell', ['-a', '-l', 'en_US']);
   final future = process.stdout.transform(utf8.decoder).first;
   process.stdin.writeln(words.map((e) => e.value).join('\n'));
   final result = LineSplitter().convert(await future).skip(1);
   process.kill();
-  return Map.fromEntries(
-    result
-        .where((e) => e.isNotEmpty)
-        .map((e) => e == '*')
-        .mapIndexed((i, e) => MapEntry(words[i], e)),
-  );
+  return result
+      .where((e) => e.isNotEmpty)
+      .map((e) => e == '*')
+      .mapIndexed(
+        (i, e) =>
+            WordResult(value: words[i].value, line: words[i].line, passed: e),
+      )
+      .toList(growable: false);
 }
 
 List<_Comment> _findComments(List<String> content) {
@@ -97,6 +101,18 @@ extension on String {
       .replaceAll(RegExp(r'`.+`'), '')
       .split(RegExp(r'\s+'))
       .where((e) => RegExp(r'\w+').hasMatch(e));
+}
+
+class WordResult {
+  WordResult({
+    required this.value,
+    required this.line,
+    required this.passed,
+  });
+
+  final String value;
+  final int line;
+  final bool passed;
 }
 
 class _Comment {
